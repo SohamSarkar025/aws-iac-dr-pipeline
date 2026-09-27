@@ -1,0 +1,52 @@
+---
+- hosts: webservers
+  become: yes
+  tasks:
+    - name: Update apt cache and upgrade system packages
+      apt:
+        update_cache: yes
+        upgrade: safe
+
+    - name: Install Nginx and AWS CLI
+      apt:
+        name: 
+          - nginx
+          - awscli
+        state: present
+
+    - name: Ensure Nginx is running and enabled
+      service:
+        name: nginx
+        state: started
+        enabled: yes
+
+    - name: Configure UFW default policies
+      ufw:
+        direction: incoming
+        policy: deny
+
+    - name: Allow incoming SSH and HTTP through UFW
+      ufw:
+        rule: allow
+        port: "{{ item }}"
+        proto: tcp
+      loop:
+        - '22'
+        - '80'
+
+    - name: Enable UFW firewall
+      ufw:
+        state: enabled
+
+    - name: Disable root SSH login for security hardening
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^PermitRootLogin'
+        line: 'PermitRootLogin no'
+      notify: Restart sshd
+
+  handlers:
+    - name: Restart sshd
+      service:
+        name: ssh
+        state: restarted
